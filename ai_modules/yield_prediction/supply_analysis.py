@@ -1,81 +1,99 @@
-import pandas as pd
+"""
+supply_analysis.py — Regional crop supply index from historical production data.
+
+Reads the India Agriculture Crop Production CSV and computes:
+    supply_index = Production / Area
+
+for each crop/district/state combination.  The dataset is loaded once at
+module import time to avoid repeated disk I/O.
+
+Dataset location: data/India Agriculture Crop Production.csv
+(relative to project root — resolved via config.DATA_DIR)
+"""
+
 import os
-from config import CROP_ALIAS
+import pandas as pd
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASET_PATH = os.path.join(BASE_DIR, "dataset", "India Agriculture Crop Production.csv")
+from ai_modules.yield_prediction.config import CROP_ALIAS, DATA_DIR
 
-def load_and_clean_data():
+DATASET_PATH = os.path.join(DATA_DIR, "India Agriculture Crop Production.csv")
+
+
+def _load_and_clean_data() -> pd.DataFrame | None:
     """Load and clean the crop production dataset, computing supply_index per row."""
     try:
         df = pd.read_csv(DATASET_PATH)
     except FileNotFoundError:
-        print(f"Error: Dataset not found at {DATASET_PATH}")
+        print(f"[supply_analysis] Error: Dataset not found at {DATASET_PATH}")
         return None
 
-    df = df.dropna(subset=['Area', 'Production'])
-    df['Area'] = pd.to_numeric(df['Area'], errors='coerce')
-    df['Production'] = pd.to_numeric(df['Production'], errors='coerce')
-    df = df.dropna(subset=['Area', 'Production'])
-    df = df[df['Area'] > 0]
-    df['supply_index'] = df['Production'] / df['Area']
+    df = df.dropna(subset=["Area", "Production"])
+    df["Area"]       = pd.to_numeric(df["Area"],       errors="coerce")
+    df["Production"] = pd.to_numeric(df["Production"], errors="coerce")
+    df = df.dropna(subset=["Area", "Production"])
+    df = df[df["Area"] > 0]
+    df["supply_index"] = df["Production"] / df["Area"]
     return df
 
-# Load dataset once at module import
-crop_df = load_and_clean_data()
 
-def get_supply_index(crop, state, district):
+# Load dataset once at module import
+_crop_df = _load_and_clean_data()
+
+
+def get_supply_index(crop: str, state: str, district: str) -> float | None:
     """
     Return the average supply_index for a crop in a given state/district.
 
     Args:
-        crop (str): Crop name (will be normalized via CROP_ALIAS).
-        state (str): State name.
+        crop     (str): Crop name (normalised via CROP_ALIAS).
+        state    (str): State name.
         district (str): District name.
 
     Returns:
         float | None: Average supply index, or None if no data found.
     """
-    if crop_df is None or crop_df.empty:
+    if _crop_df is None or _crop_df.empty:
         return None
 
     normalized_crop = CROP_ALIAS.get(crop.strip(), crop.strip())
 
     mask = (
-        (crop_df['State'].str.strip().str.lower() == state.strip().lower()) &
-        (crop_df['District'].str.strip().str.lower() == district.strip().lower()) &
-        (crop_df['Crop'].str.lower().str.contains(normalized_crop.lower(), na=False))
+        (_crop_df["State"].str.strip().str.lower()   == state.strip().lower())
+        & (_crop_df["District"].str.strip().str.lower() == district.strip().lower())
+        & (_crop_df["Crop"].str.lower().str.contains(normalized_crop.lower(), na=False))
     )
 
-    filtered_df = crop_df[mask]
+    filtered_df = _crop_df[mask]
     if filtered_df.empty:
         return None
 
-    return float(filtered_df['supply_index'].mean())
+    return float(filtered_df["supply_index"].mean())
 
-def get_region_crop_supply(state, district):
+
+def get_region_crop_supply(state: str, district: str) -> dict:
     """
     Return a dict mapping every crop in a region to its average supply_index.
 
     Returns:
         dict: {"CropName": supply_index_float, ...}
     """
-    if crop_df is None or crop_df.empty:
+    if _crop_df is None or _crop_df.empty:
         return {}
 
     mask = (
-        (crop_df['State'].str.strip().str.lower() == state.strip().lower()) &
-        (crop_df['District'].str.strip().str.lower() == district.strip().lower())
+        (_crop_df["State"].str.strip().str.lower()   == state.strip().lower())
+        & (_crop_df["District"].str.strip().str.lower() == district.strip().lower())
     )
 
-    filtered_df = crop_df[mask]
+    filtered_df = _crop_df[mask]
     if filtered_df.empty:
         return {}
 
-    return filtered_df.groupby('Crop')['supply_index'].mean().to_dict()
+    return filtered_df.groupby("Crop")["supply_index"].mean().to_dict()
+
 
 if __name__ == "__main__":
-    test_state = "Tamil Nadu"
+    test_state    = "Tamil Nadu"
     test_district = "Thanjavur"
 
     print(f"--- Supply Analysis for {test_state}, {test_district} ---")

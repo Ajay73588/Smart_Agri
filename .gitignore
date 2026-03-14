@@ -1,0 +1,46 @@
+# Environment variables — NEVER commit real keys
+.env
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Trained ML model artifacts (large binary files — store in artifact registry)
+models/
+*.pkl
+
+# Large datasets (store in cloud storage, not version control)
+data/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+
+*.pkl
+*.csv
+dataset/
+models/
